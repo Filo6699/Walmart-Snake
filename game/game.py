@@ -30,7 +30,11 @@ class Game:
         self.current_press = None
         self.last_direction = None
 
-        self.net = Network(("127.0.0.1", 12000))
+        with open('config.json', 'r') as f:
+            config = json.loads(f.read())
+        print(config)
+
+        self.net = Network((config['host'], config['port']))
 
     def move(self, direction):
         if not self.own_player.alive:
@@ -132,6 +136,11 @@ class Game:
                 pg.draw.rect(self.screen, color, (off[0] + t[0] * cs, off[1] + t[1] * cs, cs, cs), border_radius=10)
     
     def game_update(self):
+        for p in self.players:
+            if p == self.own_player:
+                continue
+            if p.deez_nuts():
+                self.players.remove(p)
         if self.current_press in ["a", "s", "d", "w"]:
             self.move(self.current_press)
 
@@ -148,6 +157,7 @@ class Game:
                 self.players.append(player)
             player.pos = data['pos']
             player.tail = data['tail']
+            player.update_pocket_time()
         elif data['type'] == "appol":
             self.apple = data["pos"]
         elif data['type'] == 'death':

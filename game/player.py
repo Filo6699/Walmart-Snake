@@ -14,6 +14,6 @@ class Player:
         self.last_pocket = datetime.now()
     
     def deez_nuts(self):
-        if (self.last_pocket - datetime.now()).seconds > 5:
+        if (datetime.now() - self.last_pocket).seconds > 5:
             return True
         return False
