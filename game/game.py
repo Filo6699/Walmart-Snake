@@ -10,9 +10,9 @@ from game.network import Network
 class Game:
     def __init__(self) -> None:
         self.pid = randint(1, 100000)
-        self.board_width = 10
-        self.board_height = 10
-        self.cell_size = 40
+        self.board_width = 20
+        self.board_height = 20
+        self.cell_size = 20
 
         bw = self.board_width * self.cell_size
         bh = self.board_height * self.cell_size
@@ -30,9 +30,10 @@ class Game:
         self.current_press = None
         self.last_direction = None
 
+        self.dead_for = 0
+
         with open('config.json', 'r') as f:
             config = json.loads(f.read())
-        print(config)
 
         self.net = Network((config['host'], config['port']))
 
@@ -120,22 +121,28 @@ class Game:
         cs = self.cell_size
         for x in range(self.board_width):
             for y in range(self.board_height):
-                pg.draw.rect(self.screen, clr.cell, (off[0] + x * cs, off[1] + y * cs, cs, cs), border_radius=10)
+                pg.draw.rect(self.screen, clr.cell, (off[0] + x * cs, off[1] + y * cs, cs, cs), border_radius=5)
         
         a = self.apple
-        pg.draw.rect(self.screen, clr.apple, [off[0] + cs * a[0], off[1] + cs * a[1], cs, cs], border_radius=10)
+        pg.draw.rect(self.screen, clr.apple, [off[0] + cs * a[0], off[1] + cs * a[1], cs, cs], border_radius=5)
         
         for plr in self.players:
             plr: Player
             if not plr.alive:
                 self.players.remove(plr)
             x, y = plr.pos
-            pg.draw.rect(self.screen, clr.player_head, (off[0] + x * cs, off[1] + y * cs, cs, cs), border_radius=10)
+            pg.draw.rect(self.screen, clr.player_head, (off[0] + x * cs, off[1] + y * cs, cs, cs), border_radius=5)
             for i, t in enumerate(plr.tail):
                 color = clr.player_body_1 if i % 2 else clr.player_body_2
-                pg.draw.rect(self.screen, color, (off[0] + t[0] * cs, off[1] + t[1] * cs, cs, cs), border_radius=10)
+                pg.draw.rect(self.screen, color, (off[0] + t[0] * cs, off[1] + t[1] * cs, cs, cs), border_radius=5)
     
     def game_update(self):
+        if not self.own_player.alive:
+            self.dead_for += 1
+            if self.dead_for > 3:
+                self.own_player = Player(self.pid, [0, 0], (self.board_width, self.board_height))
+                self.players.append(self.own_player)
+                self.dead_for = 0
         for p in self.players:
             if p == self.own_player:
                 continue
@@ -177,13 +184,14 @@ class Game:
         pg.display.set_icon(icon)
         clock = pg.time.Clock()
         net_thread = threading.Thread(target=self.net.listen_loop, args=[self.net_pocks])
+        net_thread.setDaemon(True)
         net_thread.start()
         frame = 0
         while True:
             self.handle_input()
             if frame % 30 == 0:
                 self.game_update()
+                self.draw_screen()
             frame += 1
-            self.draw_screen()
             pg.display.flip()
             clock.tick(60)
